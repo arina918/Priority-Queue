@@ -1,1 +1,186 @@
 
+#include <iostream>
+#include <vector>
+#include <chrono>
+#include <cstdlib>
+using namespace std;
+
+//**************** Binary Heap ******************
+
+class BinaryHeap {
+private:
+    vector<int> heap; 
+
+    // This function moves a value UP until heap property is fixed
+    void heapifyUp(int i) {
+        while (i > 0 && heap[(i - 1) / 2] > heap[i]) {
+            swap(heap[i], heap[(i - 1) / 2]); // swap with parent
+            i = (i - 1) / 2; 
+        }
+    }
+
+    // This function moves a value DOWN to fix heap
+    void heapifyDown(int i) {
+        int n = heap.size();
+
+        while (2 * i + 1 < n) {
+            int left = 2 * i + 1;
+            int right = 2 * i + 2;
+            int smallest = left;
+
+            if (right < n && heap[right] < heap[left])
+                smallest = right;
+
+            // if current node is already smaller, stop
+            if (heap[i] <= heap[smallest])
+                break;
+
+            // otherwise swap with smallest child
+            swap(heap[i], heap[smallest]);
+            i = smallest;
+        }
+    }
+
+public:
+    // insert a new value into heap
+    void insert(int x) {
+        heap.push_back(x); // add at the end
+        heapifyUp(heap.size() - 1); // fix heap property
+    }
+
+    // return minimum element (root)
+    int getMin() {
+        return heap[0];
+    }
+
+    // remove minimum element
+    void deleteMin() {
+        if (heap.empty()) return;
+
+        heap[0] = heap.back();
+        heap.pop_back();
+
+        if (!heap.empty())
+            heapifyDown(0);
+    }
+};
+
+//************* PAIRING HEAP (tree-based heap) ************
+
+// each node in pairing heap
+struct Node {
+    int key;
+    Node* child;   // first child
+    Node* sibling; // next sibling
+
+    Node(int k) {
+        key = k;
+        child = nullptr;
+        sibling = nullptr;
+    }
+};
+
+class PairingHeap {
+private:
+    Node* root;
+
+    // merging the heaps
+    Node* merge(Node* a, Node* b) {
+        if (!a) return b;
+        if (!b) return a;
+
+        // we will make sure that a is the smaller root
+        if (b->key < a->key)
+            swap(a, b);
+
+        // attach b as child of a
+        b->sibling = a->child;
+        a->child = b;
+
+        return a;
+    }
+
+public:
+    PairingHeap() {
+        root = nullptr;
+    }
+
+    // insert new value
+    void insert(int x) {
+        Node* newNode = new Node(x);
+        root = merge(root, newNode); // merge with current heap
+    }
+
+    // get minimum value
+    int getMin() {
+        return root->key;
+    }
+
+    // remove minimum value
+    void deleteMin() {
+        if (!root) return;
+
+        // get children of root
+        Node* temp = root->child;
+        root = nullptr;
+
+        // merge all children one by one
+        while (temp) {
+            Node* next = temp->sibling;
+            temp->sibling = nullptr;
+
+            root = merge(root, temp);
+            temp = next;
+        }
+    }
+};
+
+//************************* TEST FUNCTION (compare performance) ****************
+
+void testHeaps() {
+    const int N = 10000;
+
+    BinaryHeap bh;
+    PairingHeap ph;
+
+    // ***************** Testing Binary Heap *****************
+    auto start = chrono::high_resolution_clock::now();
+
+    // random numbers will be inserted
+    for (int i = 0; i < N; i++)
+        bh.insert(rand());
+
+    // remove the elements
+    for (int i = 0; i < N; i++)
+        bh.deleteMin();
+
+    auto end = chrono::high_resolution_clock::now();
+
+    cout << "The Binary Heap Time Is: "
+         << chrono::duration<double>(end - start).count()
+         << " seconds\n";
+
+    // ***************** Testing Pairing Heap *****************
+    start = chrono::high_resolution_clock::now();
+
+    for (int i = 0; i < N; i++)
+        ph.insert(rand());
+
+    for (int i = 0; i < N; i++)
+        ph.deleteMin();
+
+    end = chrono::high_resolution_clock::now();
+
+    cout << "The Pairing Heap Time Is: "
+         << chrono::duration<double>(end - start).count()
+         << " seconds\n";
+}
+
+//************ Main Function ******************
+
+int main() {
+    // run tests
+    testHeaps();
+
+    return 0;
+}

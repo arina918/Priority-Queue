@@ -1,26 +1,34 @@
-
 #include <iostream>
 #include <vector>
 #include <chrono>
 #include <cstdlib>
 using namespace std;
 
-//**************** Binary Heap ******************
+// binary heap
 
 class BinaryHeap {
-private:
-    vector<int> heap; 
+    vector<int> heap;
 
-    // This function moves a value UP until heap property is fixed
-    void heapifyUp(int i) {
+public:
+    void insert(int x) {
+        heap.push_back(x);
+        int i = heap.size() - 1;
+
         while (i > 0 && heap[(i - 1) / 2] > heap[i]) {
-            swap(heap[i], heap[(i - 1) / 2]); // swap with parent
-            i = (i - 1) / 2; 
+            swap(heap[i], heap[(i - 1) / 2]);
+            i = (i - 1) / 2;
         }
     }
 
-    // This function moves a value DOWN to fix heap
-    void heapifyDown(int i) {
+    int getMin() {
+        return heap[0];
+    }
+
+    void deleteMin() {
+        heap[0] = heap.back();
+        heap.pop_back();
+
+        int i = 0;
         int n = heap.size();
 
         while (2 * i + 1 < n) {
@@ -31,156 +39,173 @@ private:
             if (right < n && heap[right] < heap[left])
                 smallest = right;
 
-            // if current node is already smaller, stop
-            if (heap[i] <= heap[smallest])
-                break;
+            if (heap[i] <= heap[smallest]) break;
 
-            // otherwise swap with smallest child
             swap(heap[i], heap[smallest]);
             i = smallest;
         }
     }
 
-public:
-    // insert a new value into heap
-    void insert(int x) {
-        heap.push_back(x); // add at the end
-        heapifyUp(heap.size() - 1); // fix heap property
-    }
-
-    // return minimum element (root)
-    int getMin() {
-        return heap[0];
-    }
-
-    // remove minimum element
-    void deleteMin() {
-        if (heap.empty()) return;
-
-        heap[0] = heap.back();
-        heap.pop_back();
-
-        if (!heap.empty())
-            heapifyDown(0);
+    bool empty() {
+        return heap.empty();
     }
 };
 
-//************* PAIRING HEAP (tree-based heap) ************
+// binomial heap
 
-// each node in pairing heap
-struct Node {
-    int key;
-    Node* child;   // first child
-    Node* sibling; // next sibling
+struct BNode {
+    int key, degree;
+    BNode *child, *sibling;
 
-    Node(int k) {
+    BNode(int k) {
         key = k;
-        child = nullptr;
-        sibling = nullptr;
+        degree = 0;
+        child = sibling = nullptr;
+    }
+};
+
+class BinomialHeap {
+    BNode* head = nullptr;
+
+    BNode* merge(BNode* h1, BNode* h2) {
+        if (!h1) return h2;
+        if (!h2) return h1;
+
+        if (h1->key > h2->key) swap(h1, h2);
+
+        h2->sibling = h1->child;
+        h1->child = h2;
+        h1->degree++;
+
+        return h1;
+    }
+
+public:
+    void insert(int x) {
+        BNode* node = new BNode(x);
+        head = merge(head, node);
+    }
+
+    int getMin() {
+        return head->key;
+    }
+
+    void deleteMin() {
+        if (!head) return;
+
+        BNode* temp = head->child;
+        head = nullptr;
+
+        while (temp) {
+            BNode* next = temp->sibling;
+            temp->sibling = nullptr;
+            head = merge(head, temp);
+            temp = next;
+        }
+    }
+
+    bool empty() {
+        return head == nullptr;
+    }
+};
+
+// pairing heap
+
+struct PNode {
+    int key;
+    PNode* child;
+    PNode* sibling;
+
+    PNode(int k) {
+        key = k;
+        child = sibling = nullptr;
     }
 };
 
 class PairingHeap {
-private:
-    Node* root;
+    PNode* root = nullptr;
 
-    // merging the heaps
-    Node* merge(Node* a, Node* b) {
+    PNode* merge(PNode* a, PNode* b) {
         if (!a) return b;
         if (!b) return a;
 
-        // we will make sure that a is the smaller root
-        if (b->key < a->key)
-            swap(a, b);
+        if (b->key < a->key) swap(a, b);
 
-        // attach b as child of a
         b->sibling = a->child;
         a->child = b;
-
         return a;
     }
 
 public:
-    PairingHeap() {
-        root = nullptr;
-    }
-
-    // insert new value
     void insert(int x) {
-        Node* newNode = new Node(x);
-        root = merge(root, newNode); // merge with current heap
+        root = merge(root, new PNode(x));
     }
 
-    // get minimum value
     int getMin() {
         return root->key;
     }
 
-    // remove minimum value
     void deleteMin() {
         if (!root) return;
 
-        // get children of root
-        Node* temp = root->child;
+        PNode* temp = root->child;
         root = nullptr;
 
-        // merge all children one by one
         while (temp) {
-            Node* next = temp->sibling;
+            PNode* next = temp->sibling;
             temp->sibling = nullptr;
-
             root = merge(root, temp);
             temp = next;
         }
     }
+
+    bool empty() {
+        return root == nullptr;
+    }
 };
 
-//************************* TEST FUNCTION (compare performance) ****************
+// testing
 
-void testHeaps() {
+void testAll() {
     const int N = 10000;
+    vector<int> values;
+
+    for (int i = 0; i < N; i++)
+        values.push_back(rand());
 
     BinaryHeap bh;
+    BinomialHeap bih;
     PairingHeap ph;
 
-    // ***************** Testing Binary Heap *****************
+    // test binary
     auto start = chrono::high_resolution_clock::now();
-
-    // random numbers will be inserted
-    for (int i = 0; i < N; i++)
-        bh.insert(rand());
-
-    // remove the elements
-    for (int i = 0; i < N; i++)
-        bh.deleteMin();
-
+    for (int x : values) bh.insert(x);
+    while (!bh.empty()) bh.deleteMin();
     auto end = chrono::high_resolution_clock::now();
+    cout << "Binary Heap Time: "
+         << chrono::duration<double>(end - start).count() << endl;
 
-    cout << "The Binary Heap Time Is: "
-         << chrono::duration<double>(end - start).count()
-         << " seconds\n";
-
-    // ***************** Testing Pairing Heap *****************
+    // test binomial
     start = chrono::high_resolution_clock::now();
-
-    for (int i = 0; i < N; i++)
-        ph.insert(rand());
-
-    for (int i = 0; i < N; i++)
-        ph.deleteMin();
-
+    for (int x : values) bih.insert(x);
+    while (!bih.empty()) bih.deleteMin();
     end = chrono::high_resolution_clock::now();
+    cout << "Binomial Heap Time: "
+         << chrono::duration<double>(end - start).count() << endl;
 
-    cout << "The Pairing Heap Time Is: "
-         << chrono::duration<double>(end - start).count()
-         << " seconds\n";
+    // test pairing
+    start = chrono::high_resolution_clock::now();
+    for (int x : values) ph.insert(x);
+    while (!ph.empty()) ph.deleteMin();
+    end = chrono::high_resolution_clock::now();
+    cout << "Pairing Heap Time: "
+         << chrono::duration<double>(end - start).count() << endl;
 }
 
-//************ Main Function ******************
+// main
 
 int main() {
-    // run tests
-    testHeaps();
-
+    testAll();
     return 0;
 }
+
